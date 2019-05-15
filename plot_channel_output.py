@@ -18,5 +18,5 @@ def plot_output(datapath):
     plt.show()
     #print(array)
     
-plot_output(datapath2)   
+#plot_output(datapath1)   
     

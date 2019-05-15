@@ -4,6 +4,7 @@
 import numpy as np
 import math
 import operator
+import plot_channel_output
 
 datapath = "text.txt"
 
@@ -44,20 +45,24 @@ def waveform_former():
     T = 1/f_sample
     
     num_bits = 8
-    w = [0]*(1000)              # example what is the time interval?
+    w = [0]*(8000)              # example what is the time interval?
     codeword = codewords[0]     # per bit or whole message in once?
     
+    codeword = [0,0,1,0,0,0,0,0]
     # use root raised cosine functions!
     for i in range(num_bits):
         c = codeword[i]
-        w_temp = [0]*(1000)
+        print("C: " + str(c))
+        w_temp = [0]*(8000)
         for j in range(-500,500):
             t = T/500*j
-            term = (1+beta)*(t-i)/T
-            phi = 4*beta/(math.pi*math.sqrt(T))*(math.cos(term*math.pi)+(1-beta)*math.pi/(4*beta)*np.sinc(term))/(1-math.pow((4*beta*(t)/T),2))
-            w_temp[j-1] = float(codeword[i])*phi
+            term_plus = (1+beta)*(t)/T
+            term_minus = (1-beta)*(t)/T
+            phi = 4*beta/(math.pi*math.sqrt(T))*(math.cos(term_plus*math.pi)+(1-beta)*math.pi/(4*beta)*np.sinc(term_minus))/(1-math.pow((4*beta*(t)/T),2))
+            #print(phi)
+            w_temp[i*500+(j+500)] = float(codeword[i])*phi
         w = list(map(operator.add, w,w_temp))
-
+    
     # within certain frequency in order to go through the filter
     
     # convert signal to txt file for output
@@ -68,7 +73,8 @@ def waveform_former():
     signal_file = open("signal.txt", "w")
     signal_file.write(signal)
     signal_file.close()
-
+    
+    plot_channel_output.plot_output("signal.txt")
 
 #to do: plot the recieved signal!
  
