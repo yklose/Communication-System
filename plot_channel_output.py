@@ -5,6 +5,8 @@ import numpy as np
 
 datapath1 = "output.txt"
 datapath2 = "signal.txt"
+datapath3 = "first_filter_stage.txt"
+datapath4 = "second_filter_stage.txt"
 
 def plot_output(datapath):
     f = open(datapath, 'r')
@@ -18,5 +20,5 @@ def plot_output(datapath):
     plt.show()
     #print(array)
     
-#plot_output(datapath1)   
+plot_output(datapath4)   
     

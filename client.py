@@ -11,7 +11,7 @@ Instructions
 ------------
 python3 client.py --input_file=[FILENAME] --output_file=[FILENAME] --srv_hostname=[HOSTNAME] --srv_port=[PORT]
 
-python client.py --input_file=text.txt --output_file=output.txt --srv_hostname=iscsrv72.epfl.ch --srv_port=80
+python client.py --input_file=final_signal.txt --output_file=output.txt --srv_hostname=iscsrv72.epfl.ch --srv_port=80
 """
 
 
