@@ -4,7 +4,7 @@
 import numpy as np
 import math
 import copy
-
+from scipy import fft
 
 
 def filter_noise():
@@ -16,9 +16,11 @@ def filter_noise():
     
     copy_signal = np.array(signal).astype(np.float)
 
-    th = copy_signal > 0.5
-    start_index = np.where(th == True)[0][0]
-    end_index = np.where(th == True)[0][-1]
+    th = (abs(copy_signal) > 0.5)
+    start_index = np.where(th == True)[0][0] - 1
+    end_index = np.where(th == True)[0][-1] - 1
+    
+    print(end_index - start_index)
     
     copy_signal[0:start_index] = 0
     copy_signal[end_index:] = 0
@@ -54,20 +56,39 @@ def lowpass_filter():
         else:
             sinc_func[n] = math.sin(math.pi*w_sinc*f_c/22050)/(math.pi*w_sinc*f_c/22050)
     
-    #print(sinc_func)
+    sinc = ""
+    for i in range(len(sinc_func)):
+        sinc = sinc + str(sinc_func[i]) + "\n"
+    sinc_file = open("sinc.txt", "w")
+    sinc_file.write(sinc)
+    sinc_file.close()
+    
     
     output = np.convolve(R,sinc_func)    
-    
-    
+
     final_signal = ""
     for i in range(len(output)):
         final_signal = final_signal + str(output[i]) + "\n"
     signal_file = open("lowpass.txt", "w")
     signal_file.write(final_signal)
     signal_file.close()
-
+    
+    
+    # ------------- Compute Fourier of sinc(t) -------------
+    
+    sinc_fourier = fft(sinc_func)
+    
+    fs = ""
+    for i in range(len(sinc_fourier)):
+        fs = fs + str(np.real(sinc_fourier[i])) + "\n"
+    ff = open("fourier_sinc.txt", "w")
+    ff.write(fs)
+    ff.close()
+    
+    
     
 def run():
     filter_noise()
     lowpass_filter()
+
     
