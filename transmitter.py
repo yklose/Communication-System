@@ -46,8 +46,8 @@ def waveform_former(datapath):
     # set parameters
     beta = 1/2
     f_sample = 22050
-    T = 1/f_sample
-    num_s = int(10)                         # change if needed 
+    T = 1/f_sample*5
+    num_s = int(502)                         # change if needed 
     num_s_h = int(num_s/2)                  # need to be not multiple of 2 otherwise devision by zero!
       
     
@@ -106,13 +106,17 @@ def passband_filter(lengths_w):
     w.pop()
     
     f_c = float(2000)
+    print(lengths_w)
     x = [0]*lengths_w
-    for n in range(lengths_w):
-        x[n] = math.sqrt(2)*float(w[n])*math.cos(2*math.pi*f_c*n/22050)
-        
+    a = int(lengths_w/2)
+    for n in range(-a,a):
+        t = (1/22050)/5*n        # check if correct!
+        x[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
+       
+    #x = np.square(fft(x))
     final_signal = ""
     for i in range(len(x)):
-        final_signal = final_signal + str(x[i]) + "\n"
+        final_signal = final_signal + str(np.real(x[i])) + "\n"
     signal_file = open("passband.txt", "w")
     signal_file.write(final_signal)
     signal_file.close()  
@@ -122,7 +126,7 @@ def test():
 
     # ------------- Compute Phi(t) -------------
     # Use as base function root raised cosine
-    T = 1/22050*5
+    T = 1/22050 # maybe *5
     num_s_h = 5
     beta = 1/2
     
@@ -142,51 +146,53 @@ def test():
     phi_signal_f = ""
     for i in range(len(phi)):
         phi_signal_f = phi_signal_f + str(np.real(phi[i])) + "\n"
-    phi_file_f = open("phi.txt", "w")
+    phi_file_f = open("phi_before.txt", "w")
     phi_file_f.write(phi_signal_f)
     phi_file_f.close()
     
     
     # ------------- Fourier Phi(t) -------------
     
-    fourier_x = fft(phi)
-    fourier_x = np.square(fftshift(fourier_x))
-     
+    fourier_phi = np.square(fft(phi))
+    #fourier_x = np.square(fftshift(fourier_x))
     #fourier_x = np.square(fft(x)) 
+    
     final_signal = ""
-    for i in range(len(fourier_x)):
-        final_signal = final_signal + str(np.real(fourier_x[i])) + "\n"
-    signal_file = open("passband_test.txt", "w")
+    for i in range(len(fourier_phi)):
+        final_signal = final_signal + str(np.real(fourier_phi[i])) + "\n"
+    signal_file = open("passband_before.txt", "w")
     signal_file.write(final_signal)
     signal_file.close() 
     
     # ------------- Shift Phi(t) -------------
     
-    f = open("phi.txt", 'r')
-    w = f.read().split('\n')
-    w.pop()
+    f = open("phi_before.txt", 'r')
+    phi = f.read().split('\n')
+    phi.pop()
     
     f_c = float(2000)
     x = [0]*len(phi)
-    for n in range(len(phi)):
-        x[n] = math.sqrt(2)*float(w[n])*math.cos(2*math.pi*f_c*n/22050)
+  
+    for n in range(-1000,1000):
+        t = (1/22050)/5*n # has to be the same as the sampling steps!
+        #t = n
+        x[n+1000] = float(phi[n+1000])*math.sqrt(2)*math.cos(2*math.pi*f_c*t)
         
     final_signal = ""
     for i in range(len(x)):
-        final_signal = final_signal + str(x[i]) + "\n"
-    signal_file = open("passband.txt", "w")
+        final_signal = final_signal + str(np.real(x[i])) + "\n"
+    signal_file = open("phi_after.txt", "w")
     signal_file.write(final_signal)
     signal_file.close() 
     
     # ------------- Compute Fourier of shifted Phi(t) -------------
     
-    fourier_x_t = fft(x)
-    fourier_x_t = np.square(fftshift(fourier_x_t))
+    fourier_x_t = np.square(fft(x))
      
     fs = ""
-    for i in range(len(fourier_x)):
+    for i in range(len(fourier_x_t)):
         fs = fs + str(np.real(fourier_x_t[i])) + "\n"
-    ff = open("passband_test_1.txt", "w")
+    ff = open("passband_after.txt", "w")
     ff.write(fs)
     ff.close() 
     

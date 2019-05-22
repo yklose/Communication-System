@@ -76,7 +76,7 @@ def lowpass_filter():
     
     # ------------- Compute Fourier of sinc(t) -------------
     
-    sinc_fourier = fft(sinc_func)
+    sinc_fourier = np.square(fft(sinc_func))
     
     fs = ""
     for i in range(len(sinc_fourier)):
@@ -85,6 +85,29 @@ def lowpass_filter():
     ff.write(fs)
     ff.close()
     
+def inner_product():
+    
+    # open R(t)
+    f1 = open("waveform.txt", 'r') #actually lowpass.txt for test purpose waveform.txt
+    r = f1.read().split('\n')
+    r.pop()
+    
+    # open phi(t)
+    f2 = open("phi.txt", 'r')  # create this FILE!
+    phi = f2.read().split('\n')
+    phi.pop()
+    
+    y = np.dot(r, phi)
+    
+    # split in chunks of 8 bit for each word
+    # argmin (ci - yi)
+    
+    fs = ""
+    for i in range(len(y)):
+        fs = fs + str(np.real(y[i])) + "\n"
+    ff = open("y.txt", "w")
+    ff.write(fs)
+    ff.close()
     
     
 def run():
