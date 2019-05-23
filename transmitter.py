@@ -5,13 +5,14 @@ import numpy as np
 import math
 import operator
 from scipy.fftpack import fft, ifft, fftshift
-
+import time
 
 
 def run():
     datapath = "text.txt"
-    waveform_former(datapath)
-    test()
+    create_codewords(datapath)
+    waveform_former()
+    #test()
 
 # reads a text input file and returns its codewords. 
 # using a 8 bit translation (Ascii - Code)
@@ -20,7 +21,8 @@ def create_codewords(datapath):
     # convert to codewords
     f = open(datapath, 'r')
     text_array = list(f.read())
-    codeword_str = ""
+    
+    codeword_array = []
     n = len(text_array)
     for i in range(n):
         # convert text to ascii int 
@@ -28,99 +30,113 @@ def create_codewords(datapath):
         # convert int to 8 bit
         ascii_bits = '{0:08b}'.format(ascii_int)
         
-        codeword_str = codeword_str + " " + str(ascii_bits) + " "
-    print("Codeword: ")
-    print(codeword_str)
-    return codeword_str
+        codeword_array.append(str(ascii_bits))
+        
+    #print(codeword_array)
+    save_file("codewords", codeword_array)
+   
+
         
 
 # waveform former creates signal based on codewords
-# codewords are send as one large array (concatenade)
+# codewords are send as one large array 
 
-def waveform_former(datapath):
+def waveform_former():
     
+    start = time.clock()
     # create codewords
-    codewords = create_codewords(datapath)
-    codeword = codewords.replace(" ", "")
+    codewords = open_file("codewords")
+    codeword = ""
+    for i in range(len(codewords)):
+        codeword = codeword + str(codewords[i])
+    codeword = codeword.replace(" ", "")
+    #print(codeword)
     
     # set parameters
     beta = 1/2
     f_sample = 22050
-    T = 1/f_sample*5
-    num_s = int(502)                         # change if needed 
+    T = 1/f_sample
+    num_s = int(502)                        # change if needed 
     num_s_h = int(num_s/2)                  # need to be not multiple of 2 otherwise devision by zero!
       
     
-    #codeword = [1,1,1,0,0]                 # just for testing! 
     num_bits = len(codeword)                # number of bits transmitted
     lengths_w = (num_bits+1)*num_s
     w = [0]*(lengths_w)                     # create w
+     
+    #create phi (root raised cosine)
+    lengths_phi = num_s
+    phi = [0]*(lengths_phi)
+    for i in range(-int(lengths_phi/2), int(lengths_phi/2)):
+        t = T/num_s_h*i
+            
+        # implementation of root raised cosine function
+        term_plus = (1+beta)*(t)/T
+        term_minus = (1-beta)*(t)/T
+        sinc_term = np.sinc(term_minus)
+        denomitor = 1-math.pow((4*beta*(t)/T),2)
+
+
+        phi[i+int(lengths_phi/2)] = 4*beta/(math.pi*math.sqrt(T))*(math.cos(term_plus*math.pi)+(1-beta)*math.pi/(4*beta)*sinc_term)/(denomitor)
+
+        
+    save_file("phi_testing", phi)
     
-    # use root raised cosine functions!
-    # maybe improvement: compute phi once on large interval, paste!
+    # compute waveform
     for i in range(num_bits):
         c = codeword[i]
-        w_temp = [0]*((num_bits+1)*num_s)
-        for j in range(-num_s_h-num_s*(i),(((num_bits+1)*num_s)-num_s_h)-i*num_s):
-            t = T/num_s_h*j
+        w_temp = [0]*(lengths_w)
+         
+        if float(codeword[i]) == 0:
+            var_c = -1
+            var_codeword = num_s*i
+            w_temp[var_codeword:(len(phi)+var_codeword)] = list(map(operator.sub, w_temp,phi))
+        else:
+            var_c = 1
+            var_codeword = num_s*i
+            w_temp[var_codeword:(len(phi)+var_codeword)] = list(map(operator.add, w_temp,phi))
             
-            # implementation of root raised cosine function
-            term_plus = (1+beta)*(t)/T
-            term_minus = (1-beta)*(t)/T
-            sinc_term = np.sinc(term_minus)
-            denomitor = 1-math.pow((4*beta*(t)/T),2)
-        
-                
-            phi = 4*beta/(math.pi*math.sqrt(T))*(math.cos(term_plus*math.pi)+(1-beta)*math.pi/(4*beta)*sinc_term)/(denomitor)
-            
-            if float(codeword[i]) == 0:
-                var_c = -1
-            else:
-                var_c = 1
-            
-            w_temp[(j+num_s_h+num_s*i)] = float(var_c)*phi
-            
-        
-        # add the w_temp to the signal (w = w + w_temp)
-        # print("Step: " + str(i+1) + "/" + str(num_bits))
         w = list(map(operator.add, w,w_temp))
     
-   
     # convert signal to txt file for output
-    signal = ""
-    for i in range(len(w)):
-        signal = signal + str(w[i]) + "\n"
-    signal_file = open("waveform.txt", "w")
-    signal_file.write(signal)
-    signal_file.close()
+    save_file("waveform", w)
+    
+    end = time.clock()
+    
+    print("Time for function waveform_former:")
+    print(end-start)
     
     passband_filter(lengths_w)
 
 def passband_filter(lengths_w):
     
-    # create signal (saved as signal.txt)
-    #waveform_former()
-    
-    f = open("waveform.txt", 'r')
-    w = f.read().split('\n')
-    w.pop()
-    
+    # create signal 
+    start = time.clock()
+    w = open_file("waveform")
+   
     f_c = float(2000)
-    print(lengths_w)
+
     x = [0]*lengths_w
     a = int(lengths_w/2)
     for n in range(-a,a):
-        t = (1/22050)/5*n        # check if correct!
+        t = (1/22050)/10*n        # check if correct!
         x[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
        
-    #x = np.square(fft(x))
-    final_signal = ""
-    for i in range(len(x)):
-        final_signal = final_signal + str(np.real(x[i])) + "\n"
-    signal_file = open("passband.txt", "w")
-    signal_file.write(final_signal)
-    signal_file.close()  
-
+    
+    save_file("passband", x)
+    
+    fourier_passband = np.square(fft(x))
+    max_value_index = np.argmax(fourier_passband)
+    print("Frequency channel: ")
+    print(abs(max_value_index - len(fourier_passband)/2))
+    
+    save_file("passband_fourier", fourier_passband)
+    
+    end = time.clock()
+    print("Time for function passband:")
+    print(end-start)
+    
+# DELETE AFTER FINISH
     
 def test():
 
@@ -142,13 +158,9 @@ def test():
 
         phi[j+1000] = 4*beta/(math.pi*math.sqrt(T))*(math.cos(term_plus*math.pi)+(1-beta)*math.pi/(4*beta)*sinc_term)/(denomitor)
 
-         
-    phi_signal_f = ""
-    for i in range(len(phi)):
-        phi_signal_f = phi_signal_f + str(np.real(phi[i])) + "\n"
-    phi_file_f = open("phi_before.txt", "w")
-    phi_file_f.write(phi_signal_f)
-    phi_file_f.close()
+    
+    save_file("phi_before", phi)
+    
     
     
     # ------------- Fourier Phi(t) -------------
@@ -157,47 +169,49 @@ def test():
     #fourier_x = np.square(fftshift(fourier_x))
     #fourier_x = np.square(fft(x)) 
     
-    final_signal = ""
-    for i in range(len(fourier_phi)):
-        final_signal = final_signal + str(np.real(fourier_phi[i])) + "\n"
-    signal_file = open("passband_before.txt", "w")
-    signal_file.write(final_signal)
-    signal_file.close() 
+    save_file("passband_before", fourier_phi)
+
     
     # ------------- Shift Phi(t) -------------
     
-    f = open("phi_before.txt", 'r')
-    phi = f.read().split('\n')
-    phi.pop()
+    phi = open_file("phi_before")
     
     f_c = float(2000)
     x = [0]*len(phi)
   
     for n in range(-1000,1000):
-        t = (1/22050)/5*n # has to be the same as the sampling steps!
+        t = (1/22050)*n # has to be the same as the sampling steps! #/5
         #t = n
         x[n+1000] = float(phi[n+1000])*math.sqrt(2)*math.cos(2*math.pi*f_c*t)
         
-    final_signal = ""
-    for i in range(len(x)):
-        final_signal = final_signal + str(np.real(x[i])) + "\n"
-    signal_file = open("phi_after.txt", "w")
-    signal_file.write(final_signal)
-    signal_file.close() 
+    
+    save_file("phi_after", x)
+ 
     
     # ------------- Compute Fourier of shifted Phi(t) -------------
     
     fourier_x_t = np.square(fft(x))
      
+    save_file("passband_after", fourier_x_t)
+    
+    
+    
+def save_file(name, data):
+    data_name = str(name) + ".txt"
     fs = ""
-    for i in range(len(fourier_x_t)):
-        fs = fs + str(np.real(fourier_x_t[i])) + "\n"
-    ff = open("passband_after.txt", "w")
+    for i in range(len(data)):
+        fs = fs + str(np.real(data[i])) + "\n"
+    ff = open(data_name, "w")
     ff.write(fs)
     ff.close() 
     
+def open_file(name):
+    data_name = str(name) + ".txt"
+    f = open(data_name, 'r')
+    data = f.read().split('\n')
+    data.pop()
     
-    
+    return data
     
     
 

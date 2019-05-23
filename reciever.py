@@ -5,113 +5,154 @@ import numpy as np
 import math
 import copy
 from scipy import fft
-
+from transmitter import save_file, open_file
+import binascii
+import time
 
 def filter_noise():
     
-    datapath = "output.txt"
-    f = open(datapath, 'r')
-    signal = f.read().split('\n')
-    signal.pop()
+    signal = open_file("output")
     
     copy_signal = np.array(signal).astype(np.float)
 
     th = (abs(copy_signal) > 0.5)
     start_index = np.where(th == True)[0][0] - 1
-    end_index = np.where(th == True)[0][-1] - 1
+    end_index = np.where(th == True)[0][-1] + 1
     
-    print(end_index - start_index)
+    #print(end_index - start_index)
     
     copy_signal[0:start_index] = 0
     copy_signal[end_index:] = 0
     
+    save_file("filtered_noise", copy_signal)
     
-    first_filter_stage = ""
-    for i in range(len(copy_signal)):
-        first_filter_stage = first_filter_stage + str(copy_signal[i]) + "\n"
-    first_filter_stage_file = open("filtered_noise.txt", "w")
-    first_filter_stage_file.write(first_filter_stage)
-    first_filter_stage_file.close()
     
 def lowpass_filter():
    
+    start = time.clock()
+    w = open_file("passband") # usually filtered_noise.txt
     
-    f = open("filtered_noise.txt", 'r')
-    w = f.read().split('\n')
-    w.pop()
-    
+    # back to zero frequency band
     f_c = float(2000)
-    R = [0]*len(w)
-    for n in range(len(w)):
-        # check if correct!
-        R[n] = math.sqrt(2)*float(w[n])*math.cos(2*math.pi*f_c*n/22050)
-    
-    
+    R = np.zeros(len(w))
+    a = int(len(w)/2)
     # centered sinc
-    sinc_func = [0]*len(w)
-    for n in range(len(sinc_func)):
-        w_sinc = n-len(w)/2
-        if w_sinc == 0:
-            sinc_func[n] = 1
+    sinc_func = np.zeros(len(w))
+    for n in range(-a,a):
+        t = (1/22050)/10*n  
+        
+        R[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
+        
+        if n == 0:
+            sinc_func[n+a] = 1
         else:
-            sinc_func[n] = math.sin(math.pi*w_sinc*f_c/22050)/(math.pi*w_sinc*f_c/22050)
-    
-    sinc = ""
-    for i in range(len(sinc_func)):
-        sinc = sinc + str(sinc_func[i]) + "\n"
-    sinc_file = open("sinc.txt", "w")
-    sinc_file.write(sinc)
-    sinc_file.close()
-    
+            sinc_func[n+a] = math.sin(math.pi*t*f_c)/(math.pi*t*f_c)
+   
+        
+      
+    save_file("sinc", sinc_func)
     
     output = np.convolve(R,sinc_func)    
 
-    final_signal = ""
-    for i in range(len(output)):
-        final_signal = final_signal + str(output[i]) + "\n"
-    signal_file = open("lowpass.txt", "w")
-    signal_file.write(final_signal)
-    signal_file.close()
+    save_file("lowpass", output)
     
     
     # ------------- Compute Fourier of sinc(t) -------------
     
     sinc_fourier = np.square(fft(sinc_func))
     
-    fs = ""
-    for i in range(len(sinc_fourier)):
-        fs = fs + str(np.real(sinc_fourier[i])) + "\n"
-    ff = open("fourier_sinc.txt", "w")
-    ff.write(fs)
-    ff.close()
+    save_file("fourier_sinc", sinc_fourier)
+
+    end = time.clock()
+    print("Time for function lowpass_filter:")
+    print(end-start)
     
 def inner_product():
     
+    start = time.clock()
+    codewords = open_file("codewords")
+    num_bits = len(codewords)*8
+    
+    
     # open R(t)
-    f1 = open("waveform.txt", 'r') #actually lowpass.txt for test purpose waveform.txt
-    r = f1.read().split('\n')
-    r.pop()
+    r = open_file("lowpass") #actually lowpass.txt for test purpose waveform.txt
+    copy_r = np.array(r).astype(np.float)
+
+    th = (abs(copy_r) > 7500/2)                        # check threshold for diffent texts
+    start_index = np.where(th == True)[0][0] - 140
+    end_index = np.where(th == True)[0][-1] + 140
     
+    r = r[start_index:end_index]
+    save_file("cut_lowpass", r)
+    
+    # devide r into chunks
+    r_chunks = []
+    n = 502
+    for i in range(0, len(r), n):
+        r_chunks.append(r[i:i + n])
+    r_chunks.pop()
+   
     # open phi(t)
-    f2 = open("phi.txt", 'r')  # create this FILE!
-    phi = f2.read().split('\n')
-    phi.pop()
+    phi = open_file("phi_testing")
     
-    y = np.dot(r, phi)
     
-    # split in chunks of 8 bit for each word
-    # argmin (ci - yi)
+    # matched filter
+    y = []
+    for i in range(num_bits):
+        r_array = np.asarray(r_chunks[i])
+        r_array = list(map(float, r_array))
+        phi_plus = list(map(float, phi))
+        phi_minus = np.negative(phi_plus)
+        
+      
+        y_temp_plus = np.dot(r_array, phi_plus)
+        y_temp_minus = np.dot(r_array, phi_minus)
+       
+        if y_temp_plus > y_temp_minus:
+            y.append(1)
+        else:
+            y.append(0)
+   
+    save_file("y", y)
     
-    fs = ""
+    end = time.clock()
+    print("Time for function inner_product:")
+    print(end-start)
+    
+def check():
+    # check results
+    y = open_file("y")
+    y = ''.join(y)
+    codewords = open_file("codewords")
+    codewords = ''.join(codewords)
+    
+    counter = 0
     for i in range(len(y)):
-        fs = fs + str(np.real(y[i])) + "\n"
-    ff = open("y.txt", "w")
-    ff.write(fs)
-    ff.close()
+        if y[i] == codewords[i]:
+            counter+=1
+    print("Number of Correct Bits: " + str(counter) + "/" + str(len(y)))
     
+    # Encode Bits
+    y_bytes = []
+    n = 8
+    for i in range(0, len(y), n):
+        bit_string = y[i:i + n]
+        decimal = int(bit_string, 2)
+        y_bytes.append(str(chr(decimal)))
+    y_bytes = ''.join(y_bytes)  
+    print("Decoded recieved signal: ")
+    print(y_bytes)
+    
+    cleartext = open("text.txt", "r")
+    print("Original text: ")
+    print(cleartext.read())
+
+  
     
 def run():
-    filter_noise()
+    #filter_noise()
     lowpass_filter()
+    inner_product()
+    check()
 
     
