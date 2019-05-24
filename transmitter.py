@@ -56,7 +56,7 @@ def waveform_former():
     beta = 1/2
     f_sample = 22050
     T = 1/f_sample
-    num_s = int(502)                        # change if needed 
+    num_s = int(302)                        # change if needed 
     num_s_h = int(num_s/2)                  # need to be not multiple of 2 otherwise devision by zero!
       
     
@@ -114,21 +114,26 @@ def passband_filter(lengths_w):
     start = time.clock()
     w = open_file("waveform")
    
-    f_c = float(2000)
+    f_c = float(4000)
 
     x = [0]*lengths_w
     a = int(lengths_w/2)
     for n in range(-a,a):
-        t = (1/22050)/10*n        # check if correct!
+        t = (1/22050)*n        # check if correct!
         x[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
        
     
     save_file("passband", x)
     
     fourier_passband = np.square(fft(x))
-    max_value_index = np.argmax(fourier_passband)
+    #max_value_index = np.argmax(fourier_passband)
+    #print(abs(fourier_passband[0]))
+    th = (abs(fourier_passband) > 0.6*10**11)
+
+    first_max_value = np.where(th == True)[0][0]
     print("Frequency channel: ")
-    print(abs(max_value_index - len(fourier_passband)/2))
+    frequency = first_max_value/lengths_w*22050
+    print(frequency)
     
     save_file("passband_fourier", fourier_passband)
     

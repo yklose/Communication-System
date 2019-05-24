@@ -26,46 +26,68 @@ def filter_noise():
     
     save_file("filtered_noise", copy_signal)
     
-    
-def lowpass_filter():
-   
-    start = time.clock()
-    w = open_file("passband") # usually filtered_noise.txt
-    
-    # back to zero frequency band
-    f_c = float(2000)
-    R = np.zeros(len(w))
+def compute_sinc(w):
+ 
+    f_c = float(4000)
     a = int(len(w)/2)
-    # centered sinc
     sinc_func = np.zeros(len(w))
+    
     for n in range(-a,a):
-        t = (1/22050)/10*n  
-        
-        R[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
-        
+        t = (1/22050)*n  
         if n == 0:
             sinc_func[n+a] = 1
         else:
             sinc_func[n+a] = math.sin(math.pi*t*f_c)/(math.pi*t*f_c)
-   
-        
-      
+                
     save_file("sinc", sinc_func)
+    
+def lowpass_filter():
+   
+    start = time.clock()
+    w = open_file("filtered_noise") # usually filtered_noise.txt
+    sinc_func = open_file("sinc")
+    sinc_func = list(map(float, sinc_func))
+    # back to zero frequency band
+    f_c = float(4000)
+    R = np.zeros(len(w))
+    a = int(len(w)/2)
+    # centered sinc
+    compute_sinc(w)
+    
+    end = time.clock()
+    print("Time beginning:")
+    print(end-start)  
+    """
+    n = np.arange(-a,a+1)
+    t = (1/22050)/10*n 
+    n_plus_a = a+500
+    
+    R = math.sqrt(2)*np.take(w, n_plus_a).astype(np.float)*np.cos(2*math.pi*f_c*t)
+    """
+    
+    for n in range(-a,a):
+        t = (1/22050)*n  
+        
+        R[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
+       
+      
     
     output = np.convolve(R,sinc_func)    
 
+    
+    #start = time.clock()
     save_file("lowpass", output)
     
-    
+    #end = time.clock()
+    #print("Time for function saving:")
+    #print(end-start)  
     # ------------- Compute Fourier of sinc(t) -------------
     
-    sinc_fourier = np.square(fft(sinc_func))
+    #sinc_fourier = np.square(fft(sinc_func))
     
-    save_file("fourier_sinc", sinc_fourier)
+    #save_file("fourier_sinc", sinc_fourier)
 
-    end = time.clock()
-    print("Time for function lowpass_filter:")
-    print(end-start)
+    
     
 def inner_product():
     
@@ -78,7 +100,7 @@ def inner_product():
     r = open_file("lowpass") #actually lowpass.txt for test purpose waveform.txt
     copy_r = np.array(r).astype(np.float)
 
-    th = (abs(copy_r) > 7500/2)                        # check threshold for diffent texts
+    th = (abs(copy_r) > 2)                        # check threshold for diffent texts
     start_index = np.where(th == True)[0][0] - 140
     end_index = np.where(th == True)[0][-1] + 140
     
@@ -87,7 +109,7 @@ def inner_product():
     
     # devide r into chunks
     r_chunks = []
-    n = 502
+    n = 302
     for i in range(0, len(r), n):
         r_chunks.append(r[i:i + n])
     r_chunks.pop()
@@ -150,7 +172,7 @@ def check():
   
     
 def run():
-    #filter_noise()
+    filter_noise()
     lowpass_filter()
     inner_product()
     check()
