@@ -18,13 +18,13 @@ def filter_noise():
     th = (abs(copy_signal) > 0.5)
     start_index = np.where(th == True)[0][0] - 1
     end_index = np.where(th == True)[0][-1] + 1
-    
-    #print(end_index - start_index)
+
     
     copy_signal[0:start_index] = 0
     copy_signal[end_index:] = 0
+   
     
-    save_file("filtered_noise", copy_signal)
+    lowpass_filter(copy_signal)
     
 def compute_sinc(w):
  
@@ -41,23 +41,28 @@ def compute_sinc(w):
                 
     save_file("sinc", sinc_func)
     
-def lowpass_filter():
+    
+    
+def lowpass_filter(w):
    
     start = time.clock()
-    w = open_file("filtered_noise") # usually filtered_noise.txt
+
     sinc_func = open_file("sinc")
     sinc_func = list(map(float, sinc_func))
-    # back to zero frequency band
+ 
     f_c = float(4000)
     R = np.zeros(len(w))
     a = int(len(w)/2)
-    # centered sinc
-    compute_sinc(w)
+    
+    # centered sinc (call when carrier frequency changes!)
+    #compute_sinc(w)
     
     end = time.clock()
     print("Time beginning:")
     print(end-start)  
+    
     """
+    # for vectorizing
     n = np.arange(-a,a+1)
     t = (1/22050)/10*n 
     n_plus_a = a+500
@@ -70,34 +75,17 @@ def lowpass_filter():
         
         R[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
        
-      
     
     output = np.convolve(R,sinc_func)    
 
+    inner_product(output)
     
-    #start = time.clock()
-    save_file("lowpass", output)
-    
-    #end = time.clock()
-    #print("Time for function saving:")
-    #print(end-start)  
-    # ------------- Compute Fourier of sinc(t) -------------
-    
-    #sinc_fourier = np.square(fft(sinc_func))
-    
-    #save_file("fourier_sinc", sinc_fourier)
-
-    
-    
-def inner_product():
+def inner_product(r):
     
     start = time.clock()
     codewords = open_file("codewords")
     num_bits = len(codewords)*8
-    
-    
-    # open R(t)
-    r = open_file("lowpass") #actually lowpass.txt for test purpose waveform.txt
+   
     copy_r = np.array(r).astype(np.float)
 
     th = (abs(copy_r) > 2)                        # check threshold for diffent texts
@@ -105,7 +93,7 @@ def inner_product():
     end_index = np.where(th == True)[0][-1] + 140
     
     r = r[start_index:end_index]
-    save_file("cut_lowpass", r)
+    #save_file("cut_lowpass", r)
     
     # devide r into chunks
     r_chunks = []
@@ -173,8 +161,6 @@ def check():
     
 def run():
     filter_noise()
-    lowpass_filter()
-    inner_product()
     check()
 
     
