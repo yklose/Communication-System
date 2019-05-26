@@ -8,24 +8,19 @@ from scipy import fft
 from transmitter import save_file, open_file
 import binascii
 import time
+import operator
 
-def filter_noise():
-    
-    signal = open_file("output")
-    
-    copy_signal = np.array(signal).astype(np.float)
 
-    th = (abs(copy_signal) > 0.5)
-    start_index = np.where(th == True)[0][0] - 1
-    end_index = np.where(th == True)[0][-1] + 1
+def compute_sync_w():
+    phi = open_file("phi_testing")
+    phi = list(map(float, phi))
+    sync_w = np.zeros(8*len(phi))
+    
+    for i in range(8):
+        sync_w[(i*len(phi)):((i+1)*len(phi))] = phi
 
-    
-    copy_signal[0:start_index] = 0
-    copy_signal[end_index:] = 0
-   
-    
-    lowpass_filter(copy_signal)
-    
+    return sync_w
+
 def compute_sinc(w):
  
     f_c = float(4000)
@@ -43,10 +38,15 @@ def compute_sinc(w):
     
     
     
-def lowpass_filter(w):
+def lowpass_filter():
    
+
     start = time.clock()
 
+    w = open_file("output")
+    w = np.array(w).astype(np.float)
+
+    
     sinc_func = open_file("sinc")
     sinc_func = list(map(float, sinc_func))
  
@@ -60,6 +60,7 @@ def lowpass_filter(w):
     end = time.clock()
     print("Time beginning:")
     print(end-start)  
+    print("")
     
     """
     # for vectorizing
@@ -74,37 +75,47 @@ def lowpass_filter(w):
         t = (1/22050)*n  
         
         R[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
-       
+    
+    
+    
+    sync_w = compute_sync_w()
     
     output = np.convolve(R,sinc_func)    
-
-    inner_product(output)
     
-def inner_product(r):
     
-    start = time.clock()
     codewords = open_file("codewords")
     num_bits = len(codewords)*8
-   
-    copy_r = np.array(r).astype(np.float)
-
-    th = (abs(copy_r) > 2)                        # check threshold for diffent texts
-    start_index = np.where(th == True)[0][0] - 140
-    end_index = np.where(th == True)[0][-1] + 140
     
-    r = r[start_index:end_index]
-    #save_file("cut_lowpass", r)
+    sync_test = np.convolve(output, sync_w)
+    
+    mirrow = False
+    max_index = np.argmax(sync_test)
+    min_index = np.argmin(sync_test)
+    if abs(sync_test[min_index]) > abs(sync_test[max_index]):
+        max_index = min_index
+        mirrow = True
+    num_s = int(302)
+    start_index = max_index 
+     
+    output = output[start_index:(start_index+num_s*num_bits)]
+    save_file("test", output) 
+    
+    inner_product(output, num_bits, mirrow)
+    
+def inner_product(r, num_bits, mirrow):
+    
+    start = time.clock()
+    
     
     # devide r into chunks
     r_chunks = []
-    n = 302
+    n = int(302)
     for i in range(0, len(r), n):
-        r_chunks.append(r[i:i + n])
-    r_chunks.pop()
+        r_chunks.append(r[i:(i + n)])
+    
    
     # open phi(t)
     phi = open_file("phi_testing")
-    
     
     # matched filter
     y = []
@@ -118,16 +129,23 @@ def inner_product(r):
         y_temp_plus = np.dot(r_array, phi_plus)
         y_temp_minus = np.dot(r_array, phi_minus)
        
-        if y_temp_plus > y_temp_minus:
-            y.append(1)
+        if y_temp_plus > y_temp_minus:      # changed!!!
+            if mirrow:
+                y.append(0)
+            else:
+                y.append(1)
         else:
-            y.append(0)
+            if mirrow:
+                y.append(1)
+            else:
+                y.append(0)
    
     save_file("y", y)
     
     end = time.clock()
     print("Time for function inner_product:")
     print(end-start)
+    print("")
     
 def check():
     # check results
@@ -135,12 +153,13 @@ def check():
     y = ''.join(y)
     codewords = open_file("codewords")
     codewords = ''.join(codewords)
-    
+ 
     counter = 0
     for i in range(len(y)):
         if y[i] == codewords[i]:
             counter+=1
     print("Number of Correct Bits: " + str(counter) + "/" + str(len(y)))
+    print("")
     
     # Encode Bits
     y_bytes = []
@@ -152,15 +171,17 @@ def check():
     y_bytes = ''.join(y_bytes)  
     print("Decoded recieved signal: ")
     print(y_bytes)
+    print("")
     
     cleartext = open("text.txt", "r")
     print("Original text: ")
     print(cleartext.read())
+    print("")
 
   
     
 def run():
-    filter_noise()
+    lowpass_filter()
     check()
 
     

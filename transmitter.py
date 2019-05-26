@@ -73,11 +73,13 @@ def waveform_former():
     start = time.clock()
     # create codewords
     codewords = open_file("codewords")
-    codeword = ""
+    codeword = "11111111"                   # Syncronization Pattern at beginning!
     for i in range(len(codewords)):
         codeword = codeword + str(codewords[i])
     codeword = codeword.replace(" ", "")
-    
+    print("Codeword: ")
+    print(codeword)
+    print("")
     # set parameters
     beta = 1/2
     f_sample = 22050
@@ -93,16 +95,17 @@ def waveform_former():
     #create_phi()
     phi = open_file("phi_testing")
     phi = list(map(float, phi))
-    
+
     # compute waveform
     for i in range(num_bits):
         c = codeword[i]
         w_temp = [0]*(lengths_w)
-         
-        if float(codeword[i]) == 0:
+
+        if c == '0':
             var_c = -1
             var_codeword = num_s*i
             w_temp[var_codeword:(len(phi)+var_codeword)] = list(map(operator.sub, w_temp,phi))
+
         else:
             var_c = 1
             var_codeword = num_s*i
@@ -113,10 +116,13 @@ def waveform_former():
     # convert signal to txt file for output
     #save_file("waveform", w)
     
+    
+    
     end = time.clock()
     
     print("Time for function waveform_former:")
     print(end-start)
+    print("")
     
     passband_filter(lengths_w, w)
 
@@ -147,6 +153,7 @@ def passband_filter(lengths_w, w):
     end = time.clock()
     print("Time for function passband:")
     print(end-start)
+    print("")
     
     fourier_passband = np.square(fft(x))
     #max_value_index = np.argmax(fourier_passband)
@@ -157,6 +164,7 @@ def passband_filter(lengths_w, w):
     print("Frequency channel: ")
     frequency = first_max_value/lengths_w*22050
     print(frequency)
+    print("")
     
     #save_file("passband_fourier", fourier_passband)
     
@@ -165,12 +173,8 @@ def passband_filter(lengths_w, w):
     
 def save_file(name, data):
     data_name = str(name) + ".txt"
-    fs = ""
-    for i in range(len(data)):
-        fs = fs + str(np.real(data[i])) + "\n"
-    ff = open(data_name, "w")
-    ff.write(fs)
-    ff.close() 
+    np.savetxt(data_name, data, delimiter="\n", fmt="%s")
+
     
 def open_file(name):
     data_name = str(name) + ".txt"
