@@ -32,7 +32,6 @@ def create_codewords(datapath):
         
         codeword_array.append(str(ascii_bits))
         
-    #print(codeword_array)
     save_file("codewords", codeword_array)
     
     
@@ -77,8 +76,7 @@ def waveform_former():
     for i in range(len(codewords)):
         codeword = codeword + str(codewords[i])
     codeword = codeword.replace(" ", "")
-    print("Codeword: ")
-    print(codeword)
+    print("Creating waveform...")
     print("")
     # set parameters
     beta = 1/2
@@ -132,9 +130,11 @@ def passband_filter(lengths_w, w):
     
     #w = open_file("waveform")
    
-    f_c = float(4000)
+    f_c_1 = float(2000)
+    f_c_2 = float(4000)
 
-    x = [0]*lengths_w
+    x1 = [0]*lengths_w
+    x2 = [0]*lengths_w
     a = int(lengths_w/2)
     
     """
@@ -146,8 +146,9 @@ def passband_filter(lengths_w, w):
     """
     for n in range(-a,a):
         t = (1/22050)*n        # check if correct!
-        x[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
-    
+        x1[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c_1*t)
+        x2[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c_2*t)
+    x = np.concatenate((x1,x2))
     start = time.clock()
     save_file("passband", x)
     end = time.clock()

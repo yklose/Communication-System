@@ -11,7 +11,12 @@ import time
 import operator
 
 
-def compute_sync_w():
+def compute_sync_w(select, frequency_shift):
+    if select == 1:
+        f_c = 2000
+    else:
+        f_c = 4000
+        
     phi = open_file("phi_testing")
     phi = list(map(float, phi))
     sync_w = np.zeros(8*len(phi))
@@ -19,48 +24,60 @@ def compute_sync_w():
     for i in range(8):
         sync_w[(i*len(phi)):((i+1)*len(phi))] = phi
 
+    # shift in frequency
+    if frequency_shift:
+        a = int(len(sync_w)/2)
+        for n in range(-a,a):
+            t = (1/22050)*n  
+            sync_w[n+a] = math.sqrt(2)*float(sync_w[n+a])*math.cos(2*math.pi*f_c*t)
+
+    
     return sync_w
 
 def compute_sinc(w):
  
-    f_c = float(4000)
-    a = int(len(w)/2)
-    sinc_func = np.zeros(len(w))
+    f_c_1 = float(2000)
+    f_c_2 = float(4000)
+    a = int(len(w)/20) 
+    sinc_func1 = np.zeros(int(len(w)/10))
+    sinc_func2 = np.zeros(int(len(w)/10))
     
     for n in range(-a,a):
         t = (1/22050)*n  
         if n == 0:
-            sinc_func[n+a] = 1
+            sinc_func1[n+a] = 1
+            sinc_func2[n+a] = 1
         else:
-            sinc_func[n+a] = math.sin(math.pi*t*f_c)/(math.pi*t*f_c)
+            sinc_func1[n+a] = math.sin(math.pi*t*f_c_1)/(math.pi*t*f_c_1)
+            sinc_func2[n+a] = math.sin(math.pi*t*f_c_2)/(math.pi*t*f_c_2)
                 
-    save_file("sinc", sinc_func)
+    save_file("sinc1", sinc_func1)
+    save_file("sinc2", sinc_func2)
     
     
     
 def lowpass_filter():
    
 
-    start = time.clock()
-
     w = open_file("output")
     w = np.array(w).astype(np.float)
 
-    
-    sinc_func = open_file("sinc")
-    sinc_func = list(map(float, sinc_func))
- 
-    f_c = float(4000)
-    R = np.zeros(len(w))
-    a = int(len(w)/2)
-    
     # centered sinc (call when carrier frequency changes!)
     #compute_sinc(w)
+   
     
-    end = time.clock()
-    print("Time beginning:")
-    print(end-start)  
-    print("")
+    sinc_func1 = open_file("sinc1")
+    sinc_func1 = list(map(float, sinc_func1))
+    
+    sinc_func2 = open_file("sinc2")
+    sinc_func2 = list(map(float, sinc_func2))
+ 
+    
+    R = np.zeros(len(w))
+    
+    codewords = open_file("codewords")
+    num_bits = len(codewords)*8
+    
     
     """
     # for vectorizing
@@ -71,21 +88,51 @@ def lowpass_filter():
     R = math.sqrt(2)*np.take(w, n_plus_a).astype(np.float)*np.cos(2*math.pi*f_c*t)
     """
     
+    start = time.clock()
+    
+    sync_w1 = compute_sync_w(1, True)
+    sync_w2 = compute_sync_w(2, True)
+    
+    sync_test1 = np.absolute(np.convolve(w, sync_w1))
+    sync_test2 = np.absolute(np.convolve(w, sync_w2))
+    
+    save_file("test1", sync_test1) 
+    save_file("test2", sync_test2) 
+    
+    max_index1 = np.argmax(sync_test1)
+    max_index2 = np.argmax(sync_test2)
+    
+    if sync_test1[max_index1] < sync_test2[max_index2]:
+        print("In 4000 Hz Frequency")
+        print("")
+        sync_test = sync_test2
+        sinc_func = sinc_func2
+        select = 2
+        f_c = float(4000)
+    else:
+        print("In 2000 Hz Frequency")
+        print("")
+        sync_test = sync_test1
+        sinc_func = sinc_func1
+        select = 1
+        f_c = float(2000)
+    
+    end = time.clock()
+    print("Time for frequency Selection:")
+    print(end-start)  
+    print("")
+    
+    start = time.clock()
+    
+    # shift back in frequency
+    a = int(len(w)/2)
     for n in range(-a,a):
         t = (1/22050)*n  
         
         R[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
     
-    
-    
-    sync_w = compute_sync_w()
-    
-    output = np.convolve(R,sinc_func)    
-    
-    
-    codewords = open_file("codewords")
-    num_bits = len(codewords)*8
-    
+    sync_w = compute_sync_w(select, False)
+    output = np.convolve(R,sinc_func)  
     sync_test = np.convolve(output, sync_w)
     
     mirrow = False
@@ -94,18 +141,23 @@ def lowpass_filter():
     if abs(sync_test[min_index]) > abs(sync_test[max_index]):
         max_index = min_index
         mirrow = True
+        print("Mirrowed")
     num_s = int(302)
     start_index = max_index 
-     
+   
     output = output[start_index:(start_index+num_s*num_bits)]
     save_file("test", output) 
+
+    end = time.clock()
+    print("Time for finding startpoint in time domain:")
+    print(end-start)  
+    print("")
     
     inner_product(output, num_bits, mirrow)
     
 def inner_product(r, num_bits, mirrow):
     
     start = time.clock()
-    
     
     # devide r into chunks
     r_chunks = []
@@ -178,6 +230,7 @@ def check():
     print(cleartext.read())
     print("")
 
+    print("Done...")
   
     
 def run():
