@@ -99,8 +99,8 @@ def lowpass_filter():
     sync_test1 = np.absolute(np.convolve(w, sync_w1))
     sync_test2 = np.absolute(np.convolve(w, sync_w2))
     
-    save_file("test1", sync_test1) 
-    save_file("test2", sync_test2) 
+    #save_file("test1", sync_test1) 
+    #save_file("test2", sync_test2) 
     
     max_index1 = np.argmax(sync_test1)
     max_index2 = np.argmax(sync_test2)
@@ -135,10 +135,13 @@ def lowpass_filter():
         R[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
     
     # finding start index
-    sync_w = compute_sync_w(select, False, False)
+    #sync_w = compute_sync_w(select, False, False) 
+    sync_w = np.ones(302*8)
     output = np.convolve(R,sinc_func)  
     sync_test = np.convolve(output, sync_w)
     
+    save_file("test1", sync_test) 
+    #save_file("test", sync_test) 
     mirrow = False
     max_index = np.argmax(sync_test)
     min_index = np.argmin(sync_test)
@@ -150,10 +153,11 @@ def lowpass_filter():
     start_index = max_index 
     
     # finding end index
-    sync_w_end = compute_sync_w(select, False, True)
+    #sync_w_end = compute_sync_w(select, False, True)
+    sync_w_end = np.concatenate((np.ones(302*4)*(-1), np.ones(302*4)))
     sync_test_end = np.convolve(output, sync_w_end)
     
-    save_file("test", sync_test_end) 
+    save_file("test2", sync_test_end) 
     
     max_index_end = np.argmax(sync_test_end)
     min_index_end = np.argmin(sync_test_end)

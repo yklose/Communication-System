@@ -72,12 +72,13 @@ def waveform_former():
     start = time.clock()
     # create codewords
     codewords = open_file("codewords")
-    codeword = "1111111111111111"            # Syncronization Pattern at beginning!
+    #codeword = "1111111111111111"            # Syncronization Pattern at beginning!
+    codeword = ""
     for i in range(len(codewords)):
         codeword = codeword + str(codewords[i])
         
-    end_indicator = "1100001111000011"
-    codeword = codeword + end_indicator      # Syncronization Pattern at end of string!
+    #end_indicator = "1111111111111111"
+    #codeword = codeword + end_indicator      # Syncronization Pattern at end of string!
     
     codeword = codeword.replace(" ", "")
     print("Creating waveform...")
@@ -102,7 +103,7 @@ def waveform_former():
     for i in range(num_bits):
         c = codeword[i]
         w_temp = [0]*(lengths_w)
-
+        
         if c == '0':
             var_c = -1
             var_codeword = num_s*i
@@ -115,11 +116,18 @@ def waveform_former():
             
         w = list(map(operator.add, w,w_temp))
     
+    starting_seq = [1]*302*8
+    ending_seq = [-1]*302*4 + [1]*302*4
+    
+    w = starting_seq + w + ending_seq
+    
+    print(w[len(w)-302*5:])
+    
     # convert signal to txt file for output
     #save_file("waveform", w)
     
     
-    
+    #print (w[:100])
     end = time.clock()
     
     print("Time for function waveform_former:")
