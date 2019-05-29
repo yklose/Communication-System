@@ -31,7 +31,7 @@ def create_codewords(datapath):
         ascii_bits = '{0:08b}'.format(ascii_int)
         
         codeword_array.append(str(ascii_bits))
-        
+    
     save_file("codewords", codeword_array)
     
     
@@ -72,9 +72,13 @@ def waveform_former():
     start = time.clock()
     # create codewords
     codewords = open_file("codewords")
-    codeword = "11111111"                   # Syncronization Pattern at beginning!
+    codeword = "1111111111111111"            # Syncronization Pattern at beginning!
     for i in range(len(codewords)):
         codeword = codeword + str(codewords[i])
+        
+    end_indicator = "1100001111000011"
+    codeword = codeword + end_indicator      # Syncronization Pattern at end of string!
+    
     codeword = codeword.replace(" ", "")
     print("Creating waveform...")
     print("")
@@ -136,14 +140,7 @@ def passband_filter(lengths_w, w):
     x1 = [0]*lengths_w
     x2 = [0]*lengths_w
     a = int(lengths_w/2)
-    
-    """
-    n = np.arange(-a,a+1)
-    t = (1/22050)/10*n 
-    n_plus_a = a+500
-    
-    x = math.sqrt(2)*np.take(w, n_plus_a).astype(np.float)*np.cos(2*math.pi*f_c*t)
-    """
+
     for n in range(-a,a):
         t = (1/22050)*n        # check if correct!
         x1[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c_1*t)
@@ -156,9 +153,9 @@ def passband_filter(lengths_w, w):
     print(end-start)
     print("")
     
+    
+    """
     fourier_passband = np.square(fft(x))
-    #max_value_index = np.argmax(fourier_passband)
-    #print(abs(fourier_passband[0]))
     th = (abs(fourier_passband) > 0.6*10**11)
 
     first_max_value = np.where(th == True)[0][0]
@@ -166,9 +163,7 @@ def passband_filter(lengths_w, w):
     frequency = first_max_value/lengths_w*22050
     print(frequency)
     print("")
-    
-    #save_file("passband_fourier", fourier_passband)
-    
+    """
     
         
     

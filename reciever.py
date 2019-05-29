@@ -5,13 +5,12 @@ import numpy as np
 import math
 import copy
 from scipy import fft
-from transmitter import save_file, open_file
 import binascii
 import time
 import operator
 
 
-def compute_sync_w(select, frequency_shift):
+def compute_sync_w(select, frequency_shift, end):
     if select == 1:
         f_c = 2000
     else:
@@ -19,10 +18,23 @@ def compute_sync_w(select, frequency_shift):
         
     phi = open_file("phi_testing")
     phi = list(map(float, phi))
-    sync_w = np.zeros(8*len(phi))
+    phi_negative = np.negative(phi)
+    sync_w = np.zeros(16*len(phi))
+    sync_w_end = np.zeros(16*len(phi))
     
-    for i in range(8):
-        sync_w[(i*len(phi)):((i+1)*len(phi))] = phi
+    for i in range(16):
+        
+            # the known syncronization ending pattern is 1100001111000011
+        if end:
+            array = [0,1,6,7,8,9,14,15]
+            if i in array:
+                sync_w_end[(i*len(phi)):((i+1)*len(phi))] = phi
+            else: 
+                sync_w_end[(i*len(phi)):((i+1)*len(phi))] = phi_negative
+      
+        else:
+            # the known syncronization starting pattern is 1111111111111111
+            sync_w[(i*len(phi)):((i+1)*len(phi))] = phi
 
     # shift in frequency
     if frequency_shift:
@@ -31,6 +43,8 @@ def compute_sync_w(select, frequency_shift):
             t = (1/22050)*n  
             sync_w[n+a] = math.sqrt(2)*float(sync_w[n+a])*math.cos(2*math.pi*f_c*t)
 
+    if end:
+        sync_w = sync_w_end
     
     return sync_w
 
@@ -58,6 +72,8 @@ def compute_sinc(w):
     
 def lowpass_filter():
    
+    print("Reconstructing Signal...")
+    print("")
 
     w = open_file("output")
     w = np.array(w).astype(np.float)
@@ -75,23 +91,10 @@ def lowpass_filter():
     
     R = np.zeros(len(w))
     
-    codewords = open_file("codewords")
-    num_bits = len(codewords)*8
-    
-    
-    """
-    # for vectorizing
-    n = np.arange(-a,a+1)
-    t = (1/22050)/10*n 
-    n_plus_a = a+500
-    
-    R = math.sqrt(2)*np.take(w, n_plus_a).astype(np.float)*np.cos(2*math.pi*f_c*t)
-    """
-    
     start = time.clock()
     
-    sync_w1 = compute_sync_w(1, True)
-    sync_w2 = compute_sync_w(2, True)
+    sync_w1 = compute_sync_w(1, True, False)
+    sync_w2 = compute_sync_w(2, True, False)
     
     sync_test1 = np.absolute(np.convolve(w, sync_w1))
     sync_test2 = np.absolute(np.convolve(w, sync_w2))
@@ -131,7 +134,8 @@ def lowpass_filter():
         
         R[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
     
-    sync_w = compute_sync_w(select, False)
+    # finding start index
+    sync_w = compute_sync_w(select, False, False)
     output = np.convolve(R,sinc_func)  
     sync_test = np.convolve(output, sync_w)
     
@@ -141,19 +145,35 @@ def lowpass_filter():
     if abs(sync_test[min_index]) > abs(sync_test[max_index]):
         max_index = min_index
         mirrow = True
-        print("Mirrowed")
+        #print("Mirrowed")
     num_s = int(302)
     start_index = max_index 
-   
-    output = output[start_index:(start_index+num_s*num_bits)]
-    save_file("test", output) 
+    
+    # finding end index
+    sync_w_end = compute_sync_w(select, False, True)
+    sync_test_end = np.convolve(output, sync_w_end)
+    
+    save_file("test", sync_test_end) 
+    
+    max_index_end = np.argmax(sync_test_end)
+    min_index_end = np.argmin(sync_test_end)
+    if mirrow:
+        max_index_end = min_index_end
+    num_s = int(302)
+    end_index = max_index_end
+    
+    lengths_message = int(round((end_index-start_index)/302 - 16))
+      
+    output = output[start_index:(start_index+lengths_message*num_s)]
+    
 
     end = time.clock()
-    print("Time for finding startpoint in time domain:")
+    print("Time for finding startpoint and endpoint in time domain:")
     print(end-start)  
     print("")
     
-    inner_product(output, num_bits, mirrow)
+    
+    inner_product(output, lengths_message, mirrow)
     
 def inner_product(r, num_bits, mirrow):
     
@@ -237,4 +257,18 @@ def run():
     lowpass_filter()
     check()
 
+    
+    
+def save_file(name, data):
+    data_name = str(name) + ".txt"
+    np.savetxt(data_name, data, delimiter="\n", fmt="%s")
+
+    
+def open_file(name):
+    data_name = str(name) + ".txt"
+    f = open(data_name, 'r')
+    data = f.read().split('\n')
+    data.pop()
+    
+    return data
     
