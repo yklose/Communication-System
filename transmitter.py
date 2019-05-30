@@ -8,6 +8,8 @@ from scipy.fftpack import fft, ifft, fftshift
 import time
 
 
+sampling_rate = int(102)
+
 def run():
     datapath = "text.txt"
     create_codewords(datapath)
@@ -41,7 +43,7 @@ def create_phi():
     beta = 1/2
     f_sample = 22050
     T = 1/f_sample
-    num_s = int(302)                        # change if needed 
+    num_s = int(sampling_rate)                        # change if needed 
     num_s_h = int(num_s/2)                  # need to be not multiple of 2 otherwise devision by zero!
       
         
@@ -88,7 +90,7 @@ def waveform_former():
     beta = 1/2
     f_sample = 22050
     T = 1/f_sample
-    num_s = int(302)                        # change if needed 
+    num_s = int(sampling_rate)                        # change if needed 
     num_s_h = int(num_s/2)                  # need to be not multiple of 2 otherwise devision by zero!
       
     
@@ -127,14 +129,14 @@ def waveform_former():
     """
     
     
-    starting_seq = [1]*302*8
+    starting_seq = [1]*sampling_rate*8
     #ending_buffer = [0]*302
     
     w = starting_seq + w.tolist() 
     
     #w = starting_seq + w + ending_seq
     
-    save_file("test", w)
+    #save_file("test", w)
     
     # convert signal to txt file for output
     #save_file("waveform", w)

@@ -10,6 +10,8 @@ import time
 import operator
 
 
+sampling_rate = int(102)
+
 def compute_sync_w(select, frequency_shift):
     if select == 1:
         f_c = 2000
@@ -66,8 +68,8 @@ def lowpass_filter():
     w = open_file("output")
     w = np.array(w).astype(np.float)
 
-    # centered sinc (call when carrier frequency changes!)
-    #compute_sinc(w)
+    # centered sinc
+    compute_sinc(w)
    
     
     sinc_func1 = open_file("sinc1")
@@ -87,8 +89,6 @@ def lowpass_filter():
     sync_test1 = np.absolute(np.convolve(w, sync_w1))
     sync_test2 = np.absolute(np.convolve(w, sync_w2))
     
-    #save_file("test1", sync_test1) 
-    #save_file("test2", sync_test2) 
     
     max_index1 = np.argmax(sync_test1)
     max_index2 = np.argmax(sync_test2)
@@ -123,41 +123,34 @@ def lowpass_filter():
         R[n+a] = math.sqrt(2)*float(w[n+a])*math.cos(2*math.pi*f_c*t)
     
     # finding start index
-    #sync_w = compute_sync_w(select, False, False) 
-    sync_w = np.ones(302*8)
+    sync_w = np.ones(sampling_rate*8)
     output = np.convolve(R,sinc_func)  
     sync_test = np.convolve(output, sync_w)
     
-    save_file("test1", sync_test) 
-    #save_file("test", sync_test) 
     mirrow = False
     max_index = np.argmax(sync_test)
     min_index = np.argmin(sync_test)
     if abs(sync_test[min_index]) > abs(sync_test[max_index]):
         max_index = min_index
         mirrow = True
-        #print("Mirrowed")
-    num_s = int(302)
+    num_s = int(sampling_rate)
     start_index = max_index 
     
     # finding end index
-    #sync_w_end = compute_sync_w(select, False, True)
     copy_output = output[start_index:]
     sync_w_end = compute_sync_w(select, False)
     sync_test_end = np.convolve(copy_output, sync_w_end)
     
-    save_file("test2", sync_test_end) 
+    #save_file("test2", sync_test_end) 
     
     max_index_end = np.argmax(sync_test_end) + start_index
     min_index_end = np.argmin(sync_test_end) + start_index
     if mirrow:
         max_index_end = min_index_end
-    num_s = int(302)
+    num_s = int(sampling_rate)
     end_index = max_index_end
     
-    print(end_index)
-    
-    lengths_message = int(round((end_index-start_index)/302 - 26))
+    lengths_message = int(round((end_index-start_index)/sampling_rate - 26))
       
     output = output[start_index:(start_index+lengths_message*num_s)]
     
@@ -176,7 +169,7 @@ def inner_product(r, num_bits, mirrow):
     
     # devide r into chunks
     r_chunks = []
-    n = int(302)
+    n = int(sampling_rate)
     for i in range(0, len(r), n):
         r_chunks.append(r[i:(i + n)])
     
@@ -225,7 +218,7 @@ def check():
     for i in range(len(y)):
         if y[i] == codewords[i]:
             counter+=1
-    print("Number of Correct Bits: " + str(counter) + "/" + str(len(y)))
+    print("Number of Correct Bits (among received ones): " + str(counter) + "/" + str(len(y)))
     print("")
     
     # Encode Bits
@@ -246,6 +239,7 @@ def check():
     print("")
 
     print("Done...")
+    print("")
   
     
 def run():
