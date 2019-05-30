@@ -60,6 +60,7 @@ def create_phi():
 
         phi[i+int(lengths_phi/2)] = 4*beta/(math.pi*math.sqrt(T))*(math.cos(term_plus*math.pi)+(1-beta)*math.pi/(4*beta)*sinc_term)/(denomitor)
 
+        phi[i+int(lengths_phi/2)] = phi[i+int(lengths_phi/2)]/float(168)
         
     save_file("phi_testing", phi)
         
@@ -77,8 +78,8 @@ def waveform_former():
     for i in range(len(codewords)):
         codeword = codeword + str(codewords[i])
         
-    #end_indicator = "1111111111111111"
-    #codeword = codeword + end_indicator      # Syncronization Pattern at end of string!
+    end_indicator = "22111111111111111111111111"
+    codeword = codeword + end_indicator      # Syncronization Pattern at end of string!
     
     codeword = codeword.replace(" ", "")
     print("Creating waveform...")
@@ -99,6 +100,14 @@ def waveform_former():
     phi = open_file("phi_testing")
     phi = list(map(float, phi))
 
+    
+    c = np.asarray(list("".join(codeword))).astype(np.float)
+    c = np.where(c==0, -1, c)
+    c = np.where(c==2, 0, c)
+    w = np.kron(c, np.asarray(phi))
+    
+    
+    """
     # compute waveform
     for i in range(num_bits):
         c = codeword[i]
@@ -115,13 +124,17 @@ def waveform_former():
             w_temp[var_codeword:(len(phi)+var_codeword)] = list(map(operator.add, w_temp,phi))
             
         w = list(map(operator.add, w,w_temp))
+    """
+    
     
     starting_seq = [1]*302*8
-    ending_seq = [-1]*302*4 + [1]*302*4
+    #ending_buffer = [0]*302
     
-    w = starting_seq + w + ending_seq
+    w = starting_seq + w.tolist() 
     
-    print(w[len(w)-302*5:])
+    #w = starting_seq + w + ending_seq
+    
+    save_file("test", w)
     
     # convert signal to txt file for output
     #save_file("waveform", w)
@@ -134,14 +147,16 @@ def waveform_former():
     print(end-start)
     print("")
     
-    passband_filter(lengths_w, w)
+    passband_filter(w)
 
-def passband_filter(lengths_w, w):
+def passband_filter(w):
     
     # create signal 
     
     #w = open_file("waveform")
    
+    lengths_w = len(w)
+
     f_c_1 = float(2000)
     f_c_2 = float(4000)
 

@@ -10,7 +10,7 @@ import time
 import operator
 
 
-def compute_sync_w(select, frequency_shift, end):
+def compute_sync_w(select, frequency_shift):
     if select == 1:
         f_c = 2000
     else:
@@ -18,23 +18,14 @@ def compute_sync_w(select, frequency_shift, end):
         
     phi = open_file("phi_testing")
     phi = list(map(float, phi))
-    phi_negative = np.negative(phi)
-    sync_w = np.zeros(16*len(phi))
-    sync_w_end = np.zeros(16*len(phi))
+
+    sync_w = np.zeros(24*len(phi))
+
     
-    for i in range(16):
-        
-            # the known syncronization ending pattern is 1100001111000011
-        if end:
-            array = [0,1,6,7,8,9,14,15]
-            if i in array:
-                sync_w_end[(i*len(phi)):((i+1)*len(phi))] = phi
-            else: 
-                sync_w_end[(i*len(phi)):((i+1)*len(phi))] = phi_negative
-      
-        else:
-            # the known syncronization starting pattern is 1111111111111111
-            sync_w[(i*len(phi)):((i+1)*len(phi))] = phi
+    for i in range(24):
+     
+        # the known syncronization starting pattern is 1111111111111111
+        sync_w[(i*len(phi)):((i+1)*len(phi))] = phi
 
     # shift in frequency
     if frequency_shift:
@@ -42,9 +33,6 @@ def compute_sync_w(select, frequency_shift, end):
         for n in range(-a,a):
             t = (1/22050)*n  
             sync_w[n+a] = math.sqrt(2)*float(sync_w[n+a])*math.cos(2*math.pi*f_c*t)
-
-    if end:
-        sync_w = sync_w_end
     
     return sync_w
 
@@ -93,8 +81,8 @@ def lowpass_filter():
     
     start = time.clock()
     
-    sync_w1 = compute_sync_w(1, True, False)
-    sync_w2 = compute_sync_w(2, True, False)
+    sync_w1 = compute_sync_w(1, True)
+    sync_w2 = compute_sync_w(2, True)
     
     sync_test1 = np.absolute(np.convolve(w, sync_w1))
     sync_test2 = np.absolute(np.convolve(w, sync_w2))
@@ -154,19 +142,22 @@ def lowpass_filter():
     
     # finding end index
     #sync_w_end = compute_sync_w(select, False, True)
-    sync_w_end = np.concatenate((np.ones(302*4)*(-1), np.ones(302*4)))
-    sync_test_end = np.convolve(output, sync_w_end)
+    copy_output = output[start_index:]
+    sync_w_end = compute_sync_w(select, False)
+    sync_test_end = np.convolve(copy_output, sync_w_end)
     
     save_file("test2", sync_test_end) 
     
-    max_index_end = np.argmax(sync_test_end)
-    min_index_end = np.argmin(sync_test_end)
+    max_index_end = np.argmax(sync_test_end) + start_index
+    min_index_end = np.argmin(sync_test_end) + start_index
     if mirrow:
         max_index_end = min_index_end
     num_s = int(302)
     end_index = max_index_end
     
-    lengths_message = int(round((end_index-start_index)/302 - 16))
+    print(end_index)
+    
+    lengths_message = int(round((end_index-start_index)/302 - 26))
       
     output = output[start_index:(start_index+lengths_message*num_s)]
     
