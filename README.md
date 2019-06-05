@@ -1,4 +1,4 @@
-# Communication-Channel
+# Communication System
 by Victor Taburet and Yannick Paul Klose <br>
 PDC Project - EPFL 2019
 
