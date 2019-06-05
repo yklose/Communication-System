@@ -89,6 +89,8 @@ def lowpass_filter():
     sync_test1 = np.absolute(np.convolve(w, sync_w1))
     sync_test2 = np.absolute(np.convolve(w, sync_w2))
     
+    #save_file("test1", sync_test1)
+    #save_file("test2", sync_test2)
     
     max_index1 = np.argmax(sync_test1)
     max_index2 = np.argmax(sync_test2)
